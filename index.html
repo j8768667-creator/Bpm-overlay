@@ -181,9 +181,14 @@
             padding-right: 6px;
         }
 
-        /* ----- file input hidden but accessible ----- */
+        /* ----- file input hidden but accessible (iOS safe) ----- */
         #fileInput {
-            display: none;
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+            /* we trigger via button */;
         }
 
         /* ----- waveform container ----- */
@@ -416,7 +421,7 @@
         <div class="toolbar">
             <div class="group">
                 <button class="btn btn-primary" id="loadBtn">📂 Load</button>
-                <input type="file" id="fileInput" accept="audio/*" />
+                <input type="file" id="fileInput" accept="audio/*,audio/mpeg,audio/wav,audio/aac,audio/mp4,audio/ogg" />
             </div>
 
             <div class="group">
