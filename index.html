@@ -4,10 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Audio Editor — Beat Grid & Export</title>
 
     <style>
-        * {
+        /* ----- Reset & Base ----- */
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
@@ -25,8 +29,12 @@
             -webkit-font-smoothing: antialiased;
             touch-action: manipulation;
             user-select: none;
+            -webkit-touch-callout: none;
+            /* Prevent double-tap zoom on iPad */
+            touch-action: manipulation;
         }
 
+        /* ----- App container with safe area insets ----- */
         #app {
             display: flex;
             flex-direction: column;
@@ -34,9 +42,11 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 6px 10px 10px 10px;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
             background: #0d0f14;
         }
 
+        /* ----- Toolbar ----- */
         .toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -207,6 +217,7 @@
             pointer-events: none;
         }
 
+        /* ----- Waveform container (flex‑grow) ----- */
         .waveform-wrap {
             flex: 1;
             position: relative;
@@ -228,6 +239,7 @@
             background: #11161e;
         }
 
+        /* ----- Info panel (bottom) ----- */
         .info-panel {
             display: flex;
             flex-wrap: wrap;
@@ -239,6 +251,8 @@
             min-height: 40px;
             border-top: 1px solid #1a2029;
             margin-top: 6px;
+            /* ensure it stays within view */
+            padding-bottom: 4px;
         }
 
         .info-panel .stats {
@@ -364,6 +378,7 @@
             font-size: 10px;
         }
 
+        /* ----- Responsive fine‑tuning ----- */
         @media (max-width: 640px) {
             .toolbar {
                 gap: 4px 6px;
@@ -396,6 +411,22 @@
             .waveform-wrap {
                 min-height: 120px;
             }
+        }
+
+        /* iPad portrait: give more space */
+        @media (orientation: portrait) and (min-width: 768px) {
+            .waveform-wrap {
+                min-height: 300px;
+            }
+        }
+
+        /* Prevent double‑tap zoom on interactive elements */
+        button,
+        input,
+        label,
+        canvas,
+        .clickable {
+            touch-action: manipulation;
         }
     </style>
 </head>
@@ -986,18 +1017,9 @@
             // ---------- EXPORT ----------
             function exportAudio() {
                 if (!state.audioBuffer) return;
-                // Export audio as WAV and markers as JSON
-
                 // 1. WAV export
                 const audioBuffer = state.audioBuffer;
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const length = audioBuffer.length;
-                const buffer = audioBuffer.getChannelData(0); // use first channel for mono? Actually we have multi-channel.
-                // We'll export a WAV with the same number of channels.
-                // We'll write interleaved if stereo.
                 const wavData = audioBufferToWav(audioBuffer);
-
                 const wavBlob = new Blob([wavData], { type: 'audio/wav' });
                 const wavUrl = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
@@ -1032,27 +1054,23 @@
                 const sampleRate = buffer.sampleRate;
                 const length = buffer.length;
                 const samples = numChannels === 1 ? buffer.getChannelData(0) : interleaveChannels(buffer);
-                const dataLength = samples.length * 2; // 16-bit
+                const dataLength = samples.length * 2;
                 const bufferSize = 44 + dataLength;
                 const arrayBuffer = new ArrayBuffer(bufferSize);
                 const view = new DataView(arrayBuffer);
-
-                // RIFF header
                 writeString(view, 0, 'RIFF');
                 view.setUint32(4, 36 + dataLength, true);
                 writeString(view, 8, 'WAVE');
                 writeString(view, 12, 'fmt ');
                 view.setUint32(16, 16, true);
-                view.setUint16(20, 1, true); // PCM
+                view.setUint16(20, 1, true);
                 view.setUint16(22, numChannels, true);
                 view.setUint32(24, sampleRate, true);
-                view.setUint32(28, sampleRate * numChannels * 2, true); // byteRate
-                view.setUint16(32, numChannels * 2, true); // blockAlign
-                view.setUint16(34, 16, true); // bitsPerSample
+                view.setUint32(28, sampleRate * numChannels * 2, true);
+                view.setUint16(32, numChannels * 2, true);
+                view.setUint16(34, 16, true);
                 writeString(view, 36, 'data');
                 view.setUint32(40, dataLength, true);
-
-                // Write samples
                 let offset = 44;
                 for (let i = 0; i < samples.length; i++) {
                     const s = Math.max(-1, Math.min(1, samples[i]));
@@ -1269,7 +1287,7 @@
             });
             ro.observe(wrap);
 
-            // Keyboard
+            // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
                 if (e.target.tagName === 'INPUT') return;
                 if (e.code === 'Space') { e.preventDefault();
